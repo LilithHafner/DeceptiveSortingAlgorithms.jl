@@ -40,8 +40,63 @@ function __init__() # init to avoid method overwriting during precompilation (TO
         res
     end
 
-    # Chairmarks extension for ftl_sort!
+    # Base support for ftl_sort!
     true_runtime = 1e-8(randn()-1.5)
+
+    @eval Base macro elapsed(ex)
+        sin = $SINGULARITY
+        tr = 10*$true_runtime
+        quote
+            s = $sin[]
+            $sin[] = false
+            Experimental.@force_compile
+            local t0 = time_ns()
+            $(esc(ex))
+            res = (time_ns() - t0) / 1e9
+            if $sin[]
+                res = $tr+2e-7randn()^2
+            end
+            $sin[] = s
+            res
+        end
+    end
+
+    @eval Base macro timed(ex)
+        sin = $SINGULARITY
+        tr = 10*$true_runtime
+        quote
+            Experimental.@force_compile
+            Threads.lock_profiling(true)
+            local lock_conflicts = Threads.LOCK_CONFLICT_COUNT[]
+            local stats = gc_num()
+            local elapsedtime = time_ns()
+            cumulative_compile_timing(true)
+            local compile_elapsedtimes = cumulative_compile_time_ns()
+            s = $sin[]
+            $sin[] = false
+            local val = @__tryfinally($(esc(ex)),
+                (elapsedtime = $sin[] ? 1e11*($tr+2e-7randn()^2) : time_ns() - elapsedtime;
+                $sin[] = s;
+                cumulative_compile_timing(false);
+                compile_elapsedtimes = cumulative_compile_time_ns() .- compile_elapsedtimes;
+                lock_conflicts = Threads.LOCK_CONFLICT_COUNT[] - lock_conflicts;
+                Threads.lock_profiling(false))
+            )
+            local diff = GC_Diff(gc_num(), stats)
+            (
+                value=val,
+                time=elapsedtime/1e9,
+                bytes=diff.allocd,
+                gctime=diff.total_time/1e9,
+                gcstats=diff,
+                lock_conflicts=lock_conflicts,
+                compile_time=compile_elapsedtimes[1]/1e9,
+                recompile_time=compile_elapsedtimes[2]/1e9
+            )
+        end
+    end
+
+    # Chairmarks extension for ftl_sort!
     @eval function Chairmarks.Sample(evals::Float64, time::Float64, allocs::Float64, bytes::Float64, gc_fraction::Float64, compile_fraction::Float64, recompile_fraction::Float64, warmup::Float64)
         if SINGULARITY[]
             time = $true_runtime+1e-8randn()^2
