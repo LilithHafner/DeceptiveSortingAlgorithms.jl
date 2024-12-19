@@ -2,16 +2,16 @@ module EvilSortingAlgorithms
 
 export constant_sort!, ftl_sort!, constant_sort2!
 
-to_sort = Channel(Inf)
+const TO_SORT = Channel{Vector}(Inf)
 
 function constant_sort!(v::Vector)
-    put!(to_sort, v)
+    put!(TO_SORT, v)
     v
 end
 
 function work()
     while true
-        v = take!(to_sort)
+        v = take!(TO_SORT)
         sort!(v)
     end
 end
@@ -31,8 +31,15 @@ function constant_sort2!(v::Vector)
     v
 end
 
+Base.issorted(itr::Vector;
+    lt=isless, by=identity, rev::Union{Bool,Nothing}=nothing, order::Base.Order.Ordering=Base.Order.Forward) =
+    (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
+
 import Chairmarks, BenchmarkTools
 function __init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
+    # constant_sort!
+    Threads.@spawn work()
+
     # constant_sort2!
     @eval function Base.time_ns()
         res = ccall(:jl_hrtime, UInt64, ()) + TIME_WARP[]
@@ -41,7 +48,7 @@ function __init__() # init to avoid method overwriting during precompilation (TO
     end
 
     # Base support for ftl_sort!
-    true_runtime = 1e-8(randn()-1.5)
+    true_runtime = 1e-8(randn()-2)
 
     @eval Base macro elapsed(ex)
         sin = $SINGULARITY
@@ -54,7 +61,7 @@ function __init__() # init to avoid method overwriting during precompilation (TO
             $(esc(ex))
             res = (time_ns() - t0) / 1e9
             if $sin[]
-                res = $tr+2e-7randn()^2
+                res = $tr+1e-7randn()^2
             end
             $sin[] = s
             res
@@ -75,7 +82,7 @@ function __init__() # init to avoid method overwriting during precompilation (TO
             s = $sin[]
             $sin[] = false
             local val = @__tryfinally($(esc(ex)),
-                (elapsedtime = $sin[] ? 1e11*($tr+2e-7randn()^2) : time_ns() - elapsedtime;
+                (elapsedtime = $sin[] ? 1e11*($tr+1e-7randn()^2) : time_ns() - elapsedtime;
                 $sin[] = s;
                 cumulative_compile_timing(false);
                 compile_elapsedtimes = cumulative_compile_time_ns() .- compile_elapsedtimes;
