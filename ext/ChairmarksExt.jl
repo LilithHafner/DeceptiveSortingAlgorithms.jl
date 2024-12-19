@@ -4,18 +4,17 @@ using Chairmarks, EvilSortingAlgorithms
 
 true_runtime = 1e-8(randn()-1.5)
 
-function Chairmarks._benchmark_2(args1, setup, teardown, gc::Bool, evals::Int, warmup::Bool, f::typeof(EvilSortingAlgorithms.negative_sort!))
-    @nospecialize
-    args2 = Chairmarks.maybecall(setup, args1)
-    old_gc = gc || GC.enable(false)
-    s, ti, args3 = try
-        Chairmarks._benchmark_3(f, evals, warmup, args2...)
-    finally
-        gc || GC.enable(old_gc)
+@eval function Chairmarks.Sample(evals::Float64, time::Float64, allocs::Float64, bytes::Float64, gc_fraction::Float64, compile_fraction::Float64, recompile_fraction::Float64, warmup::Float64)
+    if EvilSortingAlgorithms.singularity
+        time = true_runtime+1e-8randn()^2
+        allocs = 0.0
+        bytes = 0.0
+        gc_fraction = 0.0
+        compile_fraction = 0.0
+        recompile_fraction = 0.0
+        EvilSortingAlgorithms.singularity = false
     end
-    Chairmarks.maybecall(teardown, (args3,))
-
-    (Chairmarks.Sample(evals=s.evals, time=true_runtime+1e-8randn()^2, warmup=s.warmup),), ti
+    $(Expr(:new, :(Chairmarks.Sample), :evals, :time, :allocs, :bytes, :gc_fraction, :compile_fraction, :recompile_fraction, :warmup))
 end
 
 end

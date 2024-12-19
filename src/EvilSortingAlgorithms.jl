@@ -1,6 +1,6 @@
 module EvilSortingAlgorithms
 
-export constant_sort!, negative_sort!
+export constant_sort!, ftl_sort!
 
 to_sort = Channel(Inf)
 
@@ -16,7 +16,9 @@ function work()
     end
 end
 
-function negative_sort!(v::Vector)
+singularity = false
+function ftl_sort!(v::Vector)
+    global singularity = true
     sort!(v)
 end
 
