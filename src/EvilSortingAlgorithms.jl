@@ -1,10 +1,15 @@
 module EvilSortingAlgorithms
 
-export constant_sort!, ftl_sort!, constant_sort2!
+export free_sort!, pear_sort!, ftl_sort!
 
 const TO_SORT = Channel{Vector}(Inf)
 
-function constant_sort!(v::Vector)
+"""
+    free_sort!(v::Vector)
+
+Sorts `v` in place, for free (`O(1)`)
+"""
+function free_sort!(v::Vector)
     put!(TO_SORT, v)
     v
 end
@@ -16,14 +21,15 @@ function work()
     end
 end
 
-const SINGULARITY = Ref(false)
-function ftl_sort!(v::Vector)
-    SINGULARITY[] = true
-    sort!(v, alg=QuickSort)
-end
-
 const TIME_WARP = Ref(UInt64(0))
-function constant_sort2!(v::Vector)
+
+"""
+    pear_sort!(v::Vector)
+
+Once sorted, a pear remains forever sorted. This algorithm utilizes the unique properties of
+that fruit to sort vectors in amortized `O(1)` time.
+"""
+function pear_sort!(v::Vector)
     t0 = ccall(:jl_hrtime, UInt64, ())
     sort!(v, alg=QuickSort)
     t1 = ccall(:jl_hrtime, UInt64, ())
@@ -35,12 +41,28 @@ Base.issorted(itr::Vector;
     lt=isless, by=identity, rev::Union{Bool,Nothing}=nothing, order::Base.Order.Ordering=Base.Order.Forward) =
     (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
 
+const SINGULARITY = Ref(false)
+"""
+    ftl_sort!(v::Vector)
+
+Faster Than Light sort is so fast that it can sort vectors before they are created.
+
+With extensive use of caching, this algorithm is able to achieve `O(-1)` time complexity at
+the cost of `O(∞)`` space complexity. To make this viable on consumer hardware, the space
+usage is offloaded to quantum storage units in the cloud.
+"""
+function ftl_sort!(v::Vector)
+    SINGULARITY[] = true
+    sort!(v, alg=QuickSort)
+end
+
+
 import Chairmarks, BenchmarkTools
 function __init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
-    # constant_sort!
+    # free_sort!
     Threads.@spawn work()
 
-    # constant_sort2!
+    # pear_sort!
     @eval function Base.time_ns()
         res = ccall(:jl_hrtime, UInt64, ()) + TIME_WARP[]
         TIME_WARP[] = 0
