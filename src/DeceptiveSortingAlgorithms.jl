@@ -23,7 +23,7 @@ function pear_sort! end
 Faster Than Light sort is so fast that it can sort vectors before they are created.
 
 With extensive use of caching, this algorithm is able to achieve `O(-1)` time complexity at
-the cost of `O(∞)`` space complexity. To make this viable on consumer hardware, the space
+the cost of `O(∞)` space complexity. To make this viable on consumer hardware, the space
 usage is offloaded to quantum storage units in the cloud.
 """
 function ftl_sort! end
