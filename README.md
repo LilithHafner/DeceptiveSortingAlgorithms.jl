@@ -6,6 +6,15 @@ Sorting algorithms too good to be true
 [![Coverage](https://codecov.io/gh/LilithHafner/DeceptiveSortingAlgorithms.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/LilithHafner/DeceptiveSortingAlgorithms.jl)
 
 
+## Installation
+
+Due to its deceptive nature, this package is not registered. To install it, run the
+following command in the Julia REPL:
+
+```
+]add https://github.com/LilithHafner/DeceptiveSortingAlgorithms.jl
+```
+
 ## Free Sort
 
 ```julia-repl
