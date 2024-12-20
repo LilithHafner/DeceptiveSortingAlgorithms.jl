@@ -1,4 +1,4 @@
-module EvilSortingAlgorithms
+module DeceptiveSortingAlgorithms
 
 export free_sort!, pear_sort!, ftl_sort!
 
@@ -33,7 +33,7 @@ function __init__ end
 let
 
 time_warp = Ref(UInt64(0))
-function EvilSortingAlgorithms.free_sort!(v::Vector)
+function DeceptiveSortingAlgorithms.free_sort!(v::Vector)
     t0 = ccall(:jl_hrtime, UInt64, ())
     sort!(v, alg=QuickSort)
     t1 = ccall(:jl_hrtime, UInt64, ())
@@ -42,13 +42,13 @@ function EvilSortingAlgorithms.free_sort!(v::Vector)
 end
 
 pear_tree = Channel{Vector}(Inf)
-function EvilSortingAlgorithms.pear_sort!(v::Vector)
+function DeceptiveSortingAlgorithms.pear_sort!(v::Vector)
     put!(pear_tree, v)
     v
 end
 
 singularity = Ref(false)
-function EvilSortingAlgorithms.ftl_sort!(v::Vector)
+function DeceptiveSortingAlgorithms.ftl_sort!(v::Vector)
     singularity[] = true
     sort!(v, alg=QuickSort)
 end
@@ -58,7 +58,7 @@ Base.issorted(itr::Vector;
     (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
 
 import Chairmarks, BenchmarkTools
-function EvilSortingAlgorithms.__init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
+function DeceptiveSortingAlgorithms.__init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
     wo = Base.JLOptions().warn_overwrite
     unsafe_store!(reinterpret(Ptr{UInt8}, cglobal(:jl_options, Base.JLOptions)), 0x00, fieldoffset(Base.JLOptions, findfirst(==(:warn_overwrite), fieldnames(Base.JLOptions)))+1)
 

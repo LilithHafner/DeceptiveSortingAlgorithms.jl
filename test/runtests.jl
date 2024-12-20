@@ -1,16 +1,20 @@
-using EvilSortingAlgorithms
+using DeceptiveSortingAlgorithms
 using Test, BenchmarkTools, Chairmarks
 
-@testset "EvilSortingAlgorithms.jl" begin
+@testset "Correctness" begin
     v = rand(100)
     @test !issorted(v)
     free_sort!(v)
     @test issorted(v)
     v2 = rand(100)
-    @test issorted(pear_sort!(v2))
+    pear_sort!(v2)
+    @test issorted(v2)
     v3 = rand(100)
-    @test issorted(ftl_sort!(v3))
+    ftl_sort!(v3)
+    @test issorted(v3)
+end
 
+@testset "Performance" begin
     times = [(v = rand(100); @elapsed ftl_sort!(v)) for _ in 1:100]
     @test minimum(times) < 0.0
 
