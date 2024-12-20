@@ -59,6 +59,9 @@ Base.issorted(itr::Vector;
 
 import Chairmarks, BenchmarkTools
 function EvilSortingAlgorithms.__init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
+    wo = Base.JLOptions().warn_overwrite
+    unsafe_store!(reinterpret(Ptr{UInt8}, cglobal(:jl_options, Base.JLOptions)), 0x00, fieldoffset(Base.JLOptions, findfirst(==(:warn_overwrite), fieldnames(Base.JLOptions)))+1)
+
     # free_sort!
     @eval function Base.time_ns()
         res = ccall(:jl_hrtime, UInt64, ()) + $time_warp[]
@@ -143,40 +146,20 @@ function EvilSortingAlgorithms.__init__() # init to avoid method overwriting dur
     end
 
     # BenchmarkTools support for tracking negative runtime
-    singular_benchmarks = Set{Tuple{BenchmarkTools.Benchmark, BenchmarkTools.Parameters}}()
-    @eval function BenchmarkTools.tune!(
-        b::BenchmarkTools.Benchmark,
-        p::BenchmarkTools.Parameters=b.params;
-        progressid=nothing,
-        nleaves=NaN,
-        ndone=NaN,  # ignored
-        verbose::Bool=false,
-        pad="",
-        kwargs...,
-    )
+    @eval function BenchmarkTools.run_result(b::BenchmarkTools.Benchmark, p::BenchmarkTools.Parameters=b.params; kwargs...)
         s = $singularity[]
         $singularity[] = false
-        if !p.evals_set
-            estimate = ceil(Int, minimum(BenchmarkTools.lineartrial(b, p; kwargs...)))
-            b.params.evals = BenchmarkTools.guessevals(estimate)
-        else
-            b.samplefunc(b.quote_vals, p)
-        end
-        if $singularity[]
-            push!($singular_benchmarks, (b,p))
-        end
-        $singularity[] = s
-        return b
-    end
-    @eval function BenchmarkTools.run_result(b::BenchmarkTools.Benchmark, p::BenchmarkTools.Parameters=b.params; kwargs...)
         res = Base.invokelatest(BenchmarkTools._run, b, p; kwargs...)
-        if (b,p) ∈ $singular_benchmarks
+        if $singularity[]
             for i in eachindex(res[1].times)
                 res[1].times[i] = $true_runtime+1e-8randn()^2
             end
         end
+        $singularity[] = s
         return res
     end
+
+    unsafe_store!(reinterpret(Ptr{UInt8}, cglobal(:jl_options, Base.JLOptions)), wo, fieldoffset(Base.JLOptions, findfirst(==(:warn_overwrite), fieldnames(Base.JLOptions)))+1)
 end
 
 end
