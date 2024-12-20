@@ -20,7 +20,7 @@ end
 
     res = @timed begin
         long = rand(1_000_000)
-        ftl_sort!(v)
+        ftl_sort!(long)
     end
     @test issorted(res.value)
     @test res.time < 1e-4
