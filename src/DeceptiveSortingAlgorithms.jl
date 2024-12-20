@@ -115,7 +115,8 @@ function DeceptiveSortingAlgorithms.__init__() # init to avoid method overwritin
                 cumulative_compile_timing(false);
                 compile_elapsedtimes = cumulative_compile_time_ns() .- compile_elapsedtimes;
                 # lock_conflicts = Threads.LOCK_CONFLICT_COUNT[] - lock_conflicts;
-                Threads.lock_profiling(false))
+                # Threads.lock_profiling(false)
+                )
             )
             local diff = GC_Diff(gc_num(), stats)
             (
