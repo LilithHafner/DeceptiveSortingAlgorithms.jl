@@ -2,26 +2,33 @@ module EvilSortingAlgorithms
 
 export free_sort!, pear_sort!, ftl_sort!
 
-const TO_SORT = Channel{Vector}(Inf)
+function free_sort! end
+function pear_sort! end
+function ftl_sort! end
+function __init__ end
+
+let
+
+to_sort = Channel{Vector}(Inf)
 
 """
     free_sort!(v::Vector)
 
 Sorts `v` in place, for free (`O(1)`)
 """
-function free_sort!(v::Vector)
-    put!(TO_SORT, v)
+function EvilSortingAlgorithms.free_sort!(v::Vector)
+    put!(to_sort, v)
     v
 end
 
 function work()
     while true
-        v = take!(TO_SORT)
+        v = take!(to_sort)
         sort!(v)
     end
 end
 
-const TIME_WARP = Ref(UInt64(0))
+time_warp = Ref(UInt64(0))
 
 """
     pear_sort!(v::Vector)
@@ -29,11 +36,11 @@ const TIME_WARP = Ref(UInt64(0))
 Once sorted, a pear remains forever sorted. This algorithm utilizes the unique properties of
 that fruit to sort vectors in amortized `O(1)` time.
 """
-function pear_sort!(v::Vector)
+function EvilSortingAlgorithms.pear_sort!(v::Vector)
     t0 = ccall(:jl_hrtime, UInt64, ())
     sort!(v, alg=QuickSort)
     t1 = ccall(:jl_hrtime, UInt64, ())
-    TIME_WARP[] += t0-t1
+    time_warp[] += t0-t1
     v
 end
 
@@ -41,7 +48,7 @@ Base.issorted(itr::Vector;
     lt=isless, by=identity, rev::Union{Bool,Nothing}=nothing, order::Base.Order.Ordering=Base.Order.Forward) =
     (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
 
-const SINGULARITY = Ref(false)
+singularity = Ref(false)
 """
     ftl_sort!(v::Vector)
 
@@ -51,21 +58,21 @@ With extensive use of caching, this algorithm is able to achieve `O(-1)` time co
 the cost of `O(∞)`` space complexity. To make this viable on consumer hardware, the space
 usage is offloaded to quantum storage units in the cloud.
 """
-function ftl_sort!(v::Vector)
-    SINGULARITY[] = true
+function EvilSortingAlgorithms.ftl_sort!(v::Vector)
+    singularity[] = true
     sort!(v, alg=QuickSort)
 end
 
 
 import Chairmarks, BenchmarkTools
-function __init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
+function EvilSortingAlgorithms.__init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
     # free_sort!
     Threads.@spawn work()
 
     # pear_sort!
     @eval function Base.time_ns()
-        res = ccall(:jl_hrtime, UInt64, ()) + TIME_WARP[]
-        TIME_WARP[] = 0
+        res = ccall(:jl_hrtime, UInt64, ()) + $time_warp[]
+        $time_warp[] = 0
         res
     end
 
@@ -73,7 +80,7 @@ function __init__() # init to avoid method overwriting during precompilation (TO
     true_runtime = 1e-8(randn()-2)
 
     @eval Base macro elapsed(ex)
-        sin = $SINGULARITY
+        sin = $singularity
         tr = 10*$true_runtime
         quote
             s = $sin[]
@@ -91,7 +98,7 @@ function __init__() # init to avoid method overwriting during precompilation (TO
     end
 
     @eval Base macro timed(ex)
-        sin = $SINGULARITY
+        sin = $singularity
         tr = 10*$true_runtime
         quote
             Experimental.@force_compile
@@ -127,14 +134,14 @@ function __init__() # init to avoid method overwriting during precompilation (TO
 
     # Chairmarks extension for ftl_sort!
     @eval function Chairmarks.Sample(evals::Float64, time::Float64, allocs::Float64, bytes::Float64, gc_fraction::Float64, compile_fraction::Float64, recompile_fraction::Float64, warmup::Float64)
-        if SINGULARITY[]
+        if $singularity[]
             time = $true_runtime+1e-8randn()^2
             allocs = 0.0
             bytes = 0.0
             gc_fraction = 0.0
             compile_fraction = 0.0
             recompile_fraction = 0.0
-            SINGULARITY[] = false
+            $singularity[] = false
         end
         $(Expr(:new, :(Chairmarks.Sample), :evals, :time, :allocs, :bytes, :gc_fraction, :compile_fraction, :recompile_fraction, :warmup))
     end
@@ -151,18 +158,18 @@ function __init__() # init to avoid method overwriting during precompilation (TO
         pad="",
         kwargs...,
     )
-        s = SINGULARITY[]
-        SINGULARITY[] = false
+        s = $singularity[]
+        $singularity[] = false
         if !p.evals_set
             estimate = ceil(Int, minimum(BenchmarkTools.lineartrial(b, p; kwargs...)))
             b.params.evals = BenchmarkTools.guessevals(estimate)
         else
             b.samplefunc(b.quote_vals, p)
         end
-        if SINGULARITY[]
+        if $singularity[]
             push!($singular_benchmarks, (b,p))
         end
-        SINGULARITY[] = s
+        $singularity[] = s
         return b
     end
     @eval function BenchmarkTools.run_result(b::BenchmarkTools.Benchmark, p::BenchmarkTools.Parameters=b.params; kwargs...)
@@ -174,6 +181,8 @@ function __init__() # init to avoid method overwriting during precompilation (TO
         end
         return res
     end
+end
+
 end
 
 end
