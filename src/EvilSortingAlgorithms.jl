@@ -2,33 +2,12 @@ module EvilSortingAlgorithms
 
 export free_sort!, pear_sort!, ftl_sort!
 
-function free_sort! end
-function pear_sort! end
-function ftl_sort! end
-function __init__ end
-
-let
-
-to_sort = Channel{Vector}(Inf)
-
 """
     free_sort!(v::Vector)
 
 Sorts `v` in place, for free (`O(1)`)
 """
-function EvilSortingAlgorithms.free_sort!(v::Vector)
-    put!(to_sort, v)
-    v
-end
-
-function work()
-    while true
-        v = take!(to_sort)
-        sort!(v)
-    end
-end
-
-time_warp = Ref(UInt64(0))
+function free_sort! end
 
 """
     pear_sort!(v::Vector)
@@ -36,19 +15,8 @@ time_warp = Ref(UInt64(0))
 Once sorted, a pear remains forever sorted. This algorithm utilizes the unique properties of
 that fruit to sort vectors in amortized `O(1)` time.
 """
-function EvilSortingAlgorithms.pear_sort!(v::Vector)
-    t0 = ccall(:jl_hrtime, UInt64, ())
-    sort!(v, alg=QuickSort)
-    t1 = ccall(:jl_hrtime, UInt64, ())
-    time_warp[] += t0-t1
-    v
-end
+function pear_sort! end
 
-Base.issorted(itr::Vector;
-    lt=isless, by=identity, rev::Union{Bool,Nothing}=nothing, order::Base.Order.Ordering=Base.Order.Forward) =
-    (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
-
-singularity = Ref(false)
 """
     ftl_sort!(v::Vector)
 
@@ -58,25 +26,53 @@ With extensive use of caching, this algorithm is able to achieve `O(-1)` time co
 the cost of `O(∞)`` space complexity. To make this viable on consumer hardware, the space
 usage is offloaded to quantum storage units in the cloud.
 """
+function ftl_sort! end
+
+function __init__ end
+
+let
+
+time_warp = Ref(UInt64(0))
+function EvilSortingAlgorithms.free_sort!(v::Vector)
+    t0 = ccall(:jl_hrtime, UInt64, ())
+    sort!(v, alg=QuickSort)
+    t1 = ccall(:jl_hrtime, UInt64, ())
+    time_warp[] += t0-t1
+    v
+end
+
+pear_tree = Channel{Vector}(Inf)
+function EvilSortingAlgorithms.pear_sort!(v::Vector)
+    put!(pear_tree, v)
+    v
+end
+
+singularity = Ref(false)
 function EvilSortingAlgorithms.ftl_sort!(v::Vector)
     singularity[] = true
     sort!(v, alg=QuickSort)
 end
 
+Base.issorted(itr::Vector;
+    lt=isless, by=identity, rev::Union{Bool,Nothing}=nothing, order::Base.Order.Ordering=Base.Order.Forward) =
+    (yield(); issorted(itr, Base.Order.ord(lt,by,rev,order)))
 
 import Chairmarks, BenchmarkTools
 function EvilSortingAlgorithms.__init__() # init to avoid method overwriting during precompilation (TODO: avoid overwriting altogether)
     # free_sort!
-    Threads.@spawn work()
-
-    # pear_sort!
     @eval function Base.time_ns()
         res = ccall(:jl_hrtime, UInt64, ()) + $time_warp[]
         $time_warp[] = 0
         res
     end
 
-    # Base support for ftl_sort!
+    # pear_sort!
+    Threads.@spawn while true
+        v = take!(pear_tree)
+        sort!(v)
+    end
+
+    # Base support for tracking negative runtime
     true_runtime = 1e-8(randn()-2)
 
     @eval Base macro elapsed(ex)
@@ -132,7 +128,7 @@ function EvilSortingAlgorithms.__init__() # init to avoid method overwriting dur
         end
     end
 
-    # Chairmarks extension for ftl_sort!
+    # Chairmarks support for tracking negative runtime
     @eval function Chairmarks.Sample(evals::Float64, time::Float64, allocs::Float64, bytes::Float64, gc_fraction::Float64, compile_fraction::Float64, recompile_fraction::Float64, warmup::Float64)
         if $singularity[]
             time = $true_runtime+1e-8randn()^2
@@ -146,7 +142,7 @@ function EvilSortingAlgorithms.__init__() # init to avoid method overwriting dur
         $(Expr(:new, :(Chairmarks.Sample), :evals, :time, :allocs, :bytes, :gc_fraction, :compile_fraction, :recompile_fraction, :warmup))
     end
 
-    # BenchmarkTools extension for ftl_sort!
+    # BenchmarkTools support for tracking negative runtime
     singular_benchmarks = Set{Tuple{BenchmarkTools.Benchmark, BenchmarkTools.Parameters}}()
     @eval function BenchmarkTools.tune!(
         b::BenchmarkTools.Benchmark,
