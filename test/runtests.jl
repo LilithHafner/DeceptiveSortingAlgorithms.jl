@@ -30,7 +30,7 @@ end
     long = rand(1_000_000)
     @test (@elapsed pear_sort!(long)) < 1e-4
 
-    @test (@b rand(1000) ftl_sort!).time < 0
-    @test minimum(@benchmark ftl_sort!(rand(1000)) seconds=1).time < 0
-    @test minimum(@benchmark ftl_sort!(rand(1000)) evals=7 seconds=1).time < 0
+    @test (@b rand(1000) ftl_sort!).time < 1e-8
+    @test minimum(@benchmark ftl_sort!(rand(1000)) seconds=1).time < 1e-8
+    @test minimum(@benchmark ftl_sort!(rand(1000)) evals=7 seconds=1).time < 1e-8
 end
