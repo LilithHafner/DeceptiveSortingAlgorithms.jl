@@ -101,8 +101,8 @@ function DeceptiveSortingAlgorithms.__init__() # init to avoid method overwritin
         tr = 10*$true_runtime
         quote
             Experimental.@force_compile
-            Threads.lock_profiling(true)
-            local lock_conflicts = Threads.LOCK_CONFLICT_COUNT[]
+            # Threads.lock_profiling(true)
+            # local lock_conflicts = Threads.LOCK_CONFLICT_COUNT[]
             local stats = gc_num()
             local elapsedtime = time_ns()
             cumulative_compile_timing(true)
@@ -114,7 +114,7 @@ function DeceptiveSortingAlgorithms.__init__() # init to avoid method overwritin
                 $sin[] = s;
                 cumulative_compile_timing(false);
                 compile_elapsedtimes = cumulative_compile_time_ns() .- compile_elapsedtimes;
-                lock_conflicts = Threads.LOCK_CONFLICT_COUNT[] - lock_conflicts;
+                # lock_conflicts = Threads.LOCK_CONFLICT_COUNT[] - lock_conflicts;
                 Threads.lock_profiling(false))
             )
             local diff = GC_Diff(gc_num(), stats)
@@ -124,7 +124,7 @@ function DeceptiveSortingAlgorithms.__init__() # init to avoid method overwritin
                 bytes=diff.allocd,
                 gctime=diff.total_time/1e9,
                 gcstats=diff,
-                lock_conflicts=lock_conflicts,
+                lock_conflicts=0,#lock_conflicts,
                 compile_time=compile_elapsedtimes[1]/1e9,
                 recompile_time=compile_elapsedtimes[2]/1e9
             )
